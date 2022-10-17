@@ -1,0 +1,796 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/icon.jpg">
+  <link rel="icon" href="/img/icon.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="River">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="一、问题的引出1. 应用的场景举日常生活中非常常见的例子： 加水放水问题：假设有一个水箱，边用水边加水，我们想要让水箱始终保持在一个固定容量(比如50L) 恒温问题：假设我们想要让一锅水始终保持在恒定温度(例如50℃) 飞行高度问题：我们怎么让飞机停在某个高度？ 2. 开环式控制我们应该怎么做呢？此时大家在想，这不是so easy吗？ 比如飞行高度问题，假设我们想要飞到50m处，只要我们设定它飞行">
+<meta property="og:type" content="article">
+<meta property="og:title" content="PID控制及其代码实现">
+<meta property="og:url" content="http://example.com/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="热爱生活">
+<meta property="og:description" content="一、问题的引出1. 应用的场景举日常生活中非常常见的例子： 加水放水问题：假设有一个水箱，边用水边加水，我们想要让水箱始终保持在一个固定容量(比如50L) 恒温问题：假设我们想要让一锅水始终保持在恒定温度(例如50℃) 飞行高度问题：我们怎么让飞机停在某个高度？ 2. 开环式控制我们应该怎么做呢？此时大家在想，这不是so easy吗？ 比如飞行高度问题，假设我们想要飞到50m处，只要我们设定它飞行">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/image-20221017184401198-6003444.png">
+<meta property="og:image" content="http://example.com/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/image-20221017184607895-6003570.png">
+<meta property="og:image" content="http://example.com/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Jobml1bmFu,size_16,color_FFFFFF,t_70-6007751.png">
+<meta property="og:image" content="http://example.com/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/image-20221017224416868-6017861.png">
+<meta property="og:image" content="http://example.com/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/image-20221017230157099-6018919.png">
+<meta property="article:published_time" content="2022-10-17T08:46:42.000Z">
+<meta property="article:modified_time" content="2022-10-17T18:16:56.860Z">
+<meta property="article:author" content="River">
+<meta property="article:tag" content="实用算法">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/image-20221017184401198-6003444.png">
+  
+  
+  
+  <title>PID控制及其代码实现 - 热爱生活</title>
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@4/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="/lib/hint/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_kmeydafke9r.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.3","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"right","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"M4itBiJJg4wKhXfCQdxTrLh3-gzGzoHsz","app_key":"vDeo82JKKQDhW2VuHjE0RXEq","server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>River&#39;s Blog</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/remark/">
+                <i class="iconfont icon-cliplist"></i>
+                留言板
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('https://cdn.jsdelivr.net/gh/simonyangchao/resources@image/1597031623646.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="PID控制及其代码实现"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-10-17 16:46" pubdate>
+          2022年10月17日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          <!-- compatible with older versions-->
+          3.4k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          <!-- compatible with older versions-->
+          11 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">PID控制及其代码实现</h1>
+            
+              <p class="note note-info">
+                
+                  
+                    <!-- compatible with older versions-->
+                    本文最后更新于：2022年10月18日 凌晨
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <h1 id="一、问题的引出"><a href="#一、问题的引出" class="headerlink" title="一、问题的引出"></a>一、问题的引出</h1><h3 id="1-应用的场景"><a href="#1-应用的场景" class="headerlink" title="1. 应用的场景"></a>1. 应用的场景</h3><p>举日常生活中非常常见的例子：</p>
+<p>加水放水问题：假设有一个水箱，边用水边加水，我们想要让水箱始终保持在一个固定容量(比如50L)</p>
+<p>恒温问题：假设我们想要让一锅水始终保持在恒定温度(例如50℃)</p>
+<p>飞行高度问题：我们怎么让飞机停在某个高度？</p>
+<h3 id="2-开环式控制"><a href="#2-开环式控制" class="headerlink" title="2. 开环式控制"></a>2. 开环式控制</h3><p><font color="green">我们应该怎么做呢？</font>此时大家在想，这不是so easy吗？</p>
+<p>比如飞行高度问题，假设我们想要飞到50m处，只要我们设定它飞行速度为10m/s，并给出指令让它飞行5s，是不是就能很轻易的完成我们的目标呢？</p>
+<p><img src="/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/image-20221017184401198-6003444.png" srcset="/img/loading.gif" lazyload alt="image-20221017184401198"></p>
+<p>上述的指令就是一个经典的<strong>开环控制</strong>，即输出并不会反过来影响输入。开环控制适合于简单的任务或者精确度要求不高的情形。</p>
+<h3 id="3-闭环控制之启停式控制"><a href="#3-闭环控制之启停式控制" class="headerlink" title="3. 闭环控制之启停式控制"></a>3. 闭环控制之启停式控制</h3><p>开环控制在理想的状态下是完全没问题的，但是真实的世界就是这么不理想哈哈哈哈。比如飞机超重速度没有达到我们要求的？比如飞行的过程中突然刮了大风。但凡有一点的意外情况，按照我们的程序指令 ，这个飞机是不太可能停在50m高度的。</p>
+<p>这时候自然而然地想到：如果高度不够，就再飞一截呗；超出去了，就下下呗。<strong>闭环控制</strong>不就来了吗</p>
+<p><img src="/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/image-20221017184607895-6003570.png" srcset="/img/loading.gif" lazyload alt="image-20221017184607895"></p>
+<p>我们来想这样的场景，飞机上升到了50m，我们立马停，发现超了，往下飞，再停，循环往复</p>
+<p>这就是启停式控制：这种情况下，相当于<strong>只有0和1两种状态</strong>。启停式控制最大的缺点就是缺乏稳定性，在期望值附近的波动会非常大。</p>
+<p>这时候我们就会想，难道就不能更智能一点吗？比如可以在差得多的时候飞的快点，快到了就让它慢点；比如说能不能减少误差的影响呢等等</p>
+<h1 id="二、PID控制算法"><a href="#二、PID控制算法" class="headerlink" title="二、PID控制算法"></a>二、PID控制算法</h1><p>PID控制算法其实是三种控制合起来的，PID(proportion integration differentiation)其实就是指比例，积分，微分控制，是一种非常经典的闭环控制算法。既然是闭环控制，图其实还是和上面类似的：</p>
+<p><img src="/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2Jobml1bmFu,size_16,color_FFFFFF,t_70-6007751.png" srcset="/img/loading.gif" lazyload alt="img"></p>
+<p>其中r(t)为被控对象状态的期望值，y(t)为被控对象状态的实际值，e(t)为被控对象期望值与实际值之间的偏差。</p>
+<p>偏差输入给P、I、D三个控制器。Kp，Ki，Kd分别为比例、积分和微分参数，它们是PID控制的基本参数。</p>
+<p>经过P、I、D三个控制器输出的值加和生成u(t)，u(t)为对被控对象的控制量。u(t)作用在被控对象上导致被控对象的状态y(t)改变。</p>
+<p>有一点非常重要，就上述的<span style="background:#d4e9d5;">PID三种控制都是针对于误差Error的</span>。</p>
+<h3 id="1-比例-P-控制"><a href="#1-比例-P-控制" class="headerlink" title="1. 比例(P)控制"></a>1. 比例(P)控制</h3><p>P控制的作用最明显，属于是在宏观上调控的。</p>
+<p>P比例控制实现功能大概如下：</p>
+<ul>
+<li>当飞机快到达50m时，让它<font color="green">慢慢的上升</font></li>
+<li>如果由于某些原因，温度降了不少，就让它<font color="green">稍微再快点上升</font></li>
+<li>如果是离目标差很远(比如刚从地上开始飞)，就让它<font color="green">使劲往上飞</font></li>
+</ul>
+<p>是不是比上面提到的启停式好多了hhh</p>
+<p>我们让Kp与误差Error建立了一次函数的关系，这样就可以通过改变Kp来改变我们调节的力度：Kp越大，调节作用就越激进；Kp越小，调节作用越保守</p>
+<p>但是只有比例控制就可以了吗？</p>
+<p>比例控制的缺点是无法消除<span style="background:#eef0f4;">稳态误差</span>，这时候就要谈到实际情况：飞机在飞行的时候，是会受各种阻力的，而由Kp调节的飞机会随着离50m越来越近而飞的越来越慢(甚至逐渐趋向于0)，这时候就会存在一种情况，就是当Kp小到上升的力正好和阻力相等的时候，我们会惊奇的发现：飞机停着不动了！！这时候它还没有达到我们的预期高度50m，这种当系统处于稳定时刻依然存在的误差即为稳态误差。</p>
+<h3 id="2-积分-I-控制"><a href="#2-积分-I-控制" class="headerlink" title="2. 积分(I)控制"></a>2. 积分(I)控制</h3><p>如上所述，为了消除稳态误差，我们引入了积分控制，形成PI控制</p>
+<p>u = kp * error +  ki * ∫ error</p>
+<p>由上式可得，积分控制是通过对系统的误差来进行积分，然后把积分结果加到比例控制上。假如单用比例控制我们的飞机停在了45m处，这时候如果有积分控制，它会随着时间来增加从而使得飞机继续上升，这样就解决了稳态误差的问题</p>
+<p>到了目标高度后，假设高度没有波动，积分值就不会再变动，飞机最终达到目标值。</p>
+<p>积分时乘的系数Ki值越大，积分效果就越明显，但是一般我们不会设置太大的Ki，不然可能会导致在刚开始起飞时，就把积分量弄得很大，导致后续难以控制</p>
+<p>在有了PI控制后，虽然解决了稳态误差问题，但是我们发现这个系统不是很稳，飞机在50m上下抖来抖去的。</p>
+<p>因为当比较接近目标时，P的控制作用就比较小了。越接近目标，P的作用越小。有很多内在的或者外部的因素，使控制量发生小范围的摆动。D的作用就是让物理量的速度趋于0。</p>
+<p>想想这种场景：我们向下拉一下一个处于稳定点的弹簧，然后松开，它是不是要好久才会停下来</p>
+<h3 id="3-微分-D-控制"><a href="#3-微分-D-控制" class="headerlink" title="3. 微分(D)控制"></a>3. 微分(D)控制</h3><p>如果说比例和积分控制是事后调节，而微分作用则是事前预防控制，即一发现y(t)有变大或变小的趋势，马上就输出一个<span style="background:#dad5e9;">阻止其变化的控制信号</span>，以防止出现过冲或超调等。</p>
+<p>如上弹簧的例子，我们要是给弹簧放在水里，弹簧是不是就会很快的停下来，就是因为水总是会给弹簧一个和其运动方向相反的力</p>
+<p>还是以飞机举例，在飞机开始逐渐升高时，此时de(t)/dt为负值，相当于在原有的PI控制上加了一个负值，使得总控制量提前减小，避免飞机超过50m</p>
+<h3 id="4-公式总结"><a href="#4-公式总结" class="headerlink" title="4. 公式总结"></a>4. 公式总结</h3><p>综上所述，PID控制的输出为三者之和：</p>
+<p><img src="/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/image-20221017224416868-6017861.png" srcset="/img/loading.gif" lazyload alt="image-20221017224416868"></p>
+<p>我们一般使用的是其离散形式，如下式所示：</p>
+<p><img src="/2022/10/17/PID%E6%8E%A7%E5%88%B6%E5%8F%8A%E5%85%B6%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0/image-20221017230157099-6018919.png" srcset="/img/loading.gif" lazyload alt="image-20221017230157099"></p>
+<p><strong>⭐️  <span style="background:#fbd4d0;">以上算出来的结果都是△量</span></strong></p>
+<h1 id="三、-Java代码实现"><a href="#三、-Java代码实现" class="headerlink" title="三、 Java代码实现"></a>三、 Java代码实现</h1><h3 id="1-数据类型定义"><a href="#1-数据类型定义" class="headerlink" title="1. 数据类型定义"></a>1. 数据类型定义</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><code class="hljs java"><span class="hljs-meta">@Data</span><br><span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">PidParam</span> &#123;<br><br>    <span class="hljs-keyword">private</span> <span class="hljs-type">double</span> kp;<br>    <span class="hljs-keyword">private</span> <span class="hljs-type">double</span> ki;<br>    <span class="hljs-keyword">private</span> <span class="hljs-type">double</span> kd;<br>    <span class="hljs-keyword">private</span> <span class="hljs-type">double</span> target;<br><br>    <span class="hljs-keyword">public</span> <span class="hljs-title function_">PidParam</span><span class="hljs-params">(<span class="hljs-type">double</span> kp,<span class="hljs-type">double</span> ki,<span class="hljs-type">double</span> kd,<span class="hljs-type">double</span> target)</span>&#123;<br>        <span class="hljs-built_in">this</span>.kp = kp;<br>        <span class="hljs-built_in">this</span>.ki = ki;<br>        <span class="hljs-built_in">this</span>.kd = kd;<br>        <span class="hljs-built_in">this</span>.target = target;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="2-PID实现"><a href="#2-PID实现" class="headerlink" title="2. PID实现"></a>2. PID实现</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><code class="hljs java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">PidImpl</span> &#123;<br><br>    <span class="hljs-keyword">private</span> PidParam pidParam;<br>    <span class="hljs-keyword">private</span> <span class="hljs-type">double</span> sumError;<br>    <span class="hljs-keyword">private</span> <span class="hljs-type">double</span> lastError;<br><br>    <span class="hljs-keyword">public</span> <span class="hljs-title function_">PidImpl</span><span class="hljs-params">(PidParam pidParam)</span>&#123;<br>        <span class="hljs-built_in">this</span>.pidParam = pidParam;<br>        <span class="hljs-built_in">this</span>.sumError = <span class="hljs-number">0</span>;<br>        <span class="hljs-built_in">this</span>.lastError = <span class="hljs-number">0</span>;<br>    &#125;<br>		<span class="hljs-comment">//main方法</span><br>    <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">main</span><span class="hljs-params">(String[] args)</span> &#123;<br>        calculate(<span class="hljs-keyword">new</span> <span class="hljs-title class_">PidParam</span>(<span class="hljs-number">0.3</span>,<span class="hljs-number">0.01</span>,<span class="hljs-number">0.2</span>,<span class="hljs-number">50</span>),<span class="hljs-number">0</span>);<br>    &#125;<br>		<br>  	<span class="hljs-comment">//给定目标值与初始值，开始执行PID算法直至达到稳态</span><br>    <span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">calculate</span><span class="hljs-params">(PidParam pidParam,<span class="hljs-type">double</span> curValue)</span>&#123;<br>        <span class="hljs-type">double</span> <span class="hljs-variable">target</span> <span class="hljs-operator">=</span> pidParam.getTarget();<br>        <span class="hljs-type">PidImpl</span> <span class="hljs-variable">pidImpl</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">PidImpl</span>(pidParam);<br>        <span class="hljs-comment">//循环直至达到稳态</span><br>        <span class="hljs-keyword">while</span>((target - curValue) == <span class="hljs-number">0</span>)&#123;<br>            <span class="hljs-type">double</span> <span class="hljs-variable">variable</span> <span class="hljs-operator">=</span> pidImpl.PidAlgorithm(curValue);<br>            curValue += variable;<br>            System.out.println(curValue);<br>        &#125;<br>    &#125;<br>		<br>  	<span class="hljs-comment">//单次PID执行流程</span><br>    <span class="hljs-keyword">public</span> <span class="hljs-type">double</span> <span class="hljs-title function_">PidAlgorithm</span><span class="hljs-params">(<span class="hljs-type">double</span> curValue)</span>&#123;<br>        <span class="hljs-type">double</span> <span class="hljs-variable">error</span> <span class="hljs-operator">=</span> pidParam.getTarget() - curValue;<br>        sumError += error;<br>        <span class="hljs-comment">//P控制</span><br>        <span class="hljs-type">double</span> <span class="hljs-variable">P_output</span> <span class="hljs-operator">=</span> pidParam.getKp() * error;<br>        <span class="hljs-comment">//I控制</span><br>        <span class="hljs-type">double</span> <span class="hljs-variable">I_output</span> <span class="hljs-operator">=</span> pidParam.getKi() * sumError;<br>        <span class="hljs-comment">//D控制</span><br>        <span class="hljs-type">double</span> <span class="hljs-variable">D_output</span> <span class="hljs-operator">=</span> pidParam.getKd() * (error - lastError);<br>        <span class="hljs-comment">//输出结果</span><br>        <span class="hljs-type">double</span> <span class="hljs-variable">variable</span> <span class="hljs-operator">=</span> P_output + I_output + D_output;<br>        lastError = error;<br>        <span class="hljs-keyword">return</span> variable;<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E7%AE%97%E6%B3%95%E8%AF%A6%E8%A7%A3/" class="category-chain-item">算法详解</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E5%AE%9E%E7%94%A8%E7%AE%97%E6%B3%95/">#实用算法</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>PID控制及其代码实现</div>
+      <div>http://example.com/2022/10/17/PID控制及其代码实现/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>River</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年10月17日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/10/04/Spring%E5%AD%A6%E4%B9%A0%E6%96%87%E6%A1%A3/" title="Spring学习文档">
+                        <span class="hidden-mobile">Spring学习文档</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://cdn.jsdelivr.net/npm/valine@1/dist/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"M4itBiJJg4wKhXfCQdxTrLh3-gzGzoHsz","appKey":"vDeo82JKKQDhW2VuHjE0RXEq","path":"window.location.pathname","placeholder":"说点什么","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":null,"emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+</div>
+
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js" ></script>
+<script  src="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://cdn.jsdelivr.net/npm/typed.js@2/lib/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://cdn.jsdelivr.net/npm/tocbot@4/dist/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://cdn.jsdelivr.net/npm/anchor-js@4/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
