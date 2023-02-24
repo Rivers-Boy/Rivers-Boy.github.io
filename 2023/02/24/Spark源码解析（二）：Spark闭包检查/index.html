@@ -1,0 +1,802 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/icon.jpg">
+  <link rel="icon" href="/img/icon.jpg">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="River">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="一、理解 Scala 闭包：Closures1.1 闭包的定义闭包就是一个函数和与其相关的引用环境组合的一个整体(实体)。进一步说，闭包是绑定了自由变量的函数实例。 通常来讲，闭包的实现机制是定义一个特殊的数据结构，保存了函数地址指针与闭包创建时的函数的词法环境以及绑定自由变量。 对于闭包最好的解释，莫过于《流程的Python》里给出的“它是延伸了作用域的函数，其中包括函数定义体引用，以及不在定义">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spark源码解析（二）：Spark闭包检查">
+<meta property="og:url" content="http://example.com/2023/02/24/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89%EF%BC%9ASpark%E9%97%AD%E5%8C%85%E6%A3%80%E6%9F%A5/index.html">
+<meta property="og:site_name" content="热爱生活">
+<meta property="og:description" content="一、理解 Scala 闭包：Closures1.1 闭包的定义闭包就是一个函数和与其相关的引用环境组合的一个整体(实体)。进一步说，闭包是绑定了自由变量的函数实例。 通常来讲，闭包的实现机制是定义一个特殊的数据结构，保存了函数地址指针与闭包创建时的函数的词法环境以及绑定自由变量。 对于闭包最好的解释，莫过于《流程的Python》里给出的“它是延伸了作用域的函数，其中包括函数定义体引用，以及不在定义">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2023/02/24/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89%EF%BC%9ASpark%E9%97%AD%E5%8C%85%E6%A3%80%E6%9F%A5/image-20230224152448542-7223495.png">
+<meta property="og:image" content="http://example.com/2023/02/24/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89%EF%BC%9ASpark%E9%97%AD%E5%8C%85%E6%A3%80%E6%9F%A5/image-20230224153042153-7223846.png">
+<meta property="og:image" content="http://example.com/2023/02/24/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89%EF%BC%9ASpark%E9%97%AD%E5%8C%85%E6%A3%80%E6%9F%A5/image-20230224160121423-7225683.png">
+<meta property="article:published_time" content="2023-02-24T06:39:09.000Z">
+<meta property="article:modified_time" content="2023-02-24T11:31:58.842Z">
+<meta property="article:author" content="River">
+<meta property="article:tag" content="源码解析">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/2023/02/24/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89%EF%BC%9ASpark%E9%97%AD%E5%8C%85%E6%A3%80%E6%9F%A5/image-20230224152448542-7223495.png">
+  
+  
+  
+  <title>Spark源码解析（二）：Spark闭包检查 - 热爱生活</title>
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@4/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="/lib/hint/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_kmeydafke9r.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.3","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"right","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"M4itBiJJg4wKhXfCQdxTrLh3-gzGzoHsz","app_key":"vDeo82JKKQDhW2VuHjE0RXEq","server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>River&#39;s Blog</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/remark/">
+                <i class="iconfont icon-cliplist"></i>
+                留言板
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('https://cdn.jsdelivr.net/gh/simonyangchao/resources@image/1597031623646.jpg') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Spark源码解析（二）：Spark闭包检查"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2023-02-24 14:39" pubdate>
+          2023年2月24日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          <!-- compatible with older versions-->
+          5.2k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          <!-- compatible with older versions-->
+          17 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">Spark源码解析（二）：Spark闭包检查</h1>
+            
+              <p class="note note-info">
+                
+                  
+                    <!-- compatible with older versions-->
+                    本文最后更新于：2023年2月24日 晚上
+                  
+                
+              </p>
+            
+            
+              <div class="markdown-body">
+                
+                <h3 id="一、理解-Scala-闭包：Closures"><a href="#一、理解-Scala-闭包：Closures" class="headerlink" title="一、理解 Scala 闭包：Closures"></a>一、理解 Scala 闭包：Closures</h3><h4 id="1-1-闭包的定义"><a href="#1-1-闭包的定义" class="headerlink" title="1.1 闭包的定义"></a>1.1 闭包的定义</h4><p><span style="background:#dad5e9;"><a href>闭包</a>就是一个函数和与其相关的引用环境组合的一个整体(实体)。</span>进一步说，闭包是绑定了自由变量的函数实例。</p>
+<p>通常来讲，闭包的实现机制是定义一个特殊的数据结构，保存了函数地址指针与闭包创建时的函数的词法环境以及绑定自由变量。</p>
+<p>对于闭包最好的解释，莫过于《流程的Python》里给出的“它是延伸了作用域的函数，其中包括函数定义体引用，以及不在定义体定义的非全局变量。核心在于闭包能够访问定义体之外定义的非全局变量。”</p>
+<p>在Scala中，函数引入传入的参数是再正常不过的事情了，比如 <code>(x: Int) =&gt; x &gt; 0</code>中，唯一在函数体<code>x &gt; 0</code>中用到的变量是x，即这个函数的唯一参数。</p>
+<p>除此之外，Scala还支持引用其他地方定义的变量： <code>(x: Int) =&gt; x + more</code>，这个函数将<code>more</code>也作为入参，不过这个参数是哪里来的？从这个函数的角度来看，more是一个 <font color="red">自由变量</font> ，因为函数字面量本身并没有给more赋予任何含义。相反，<font color="green">x是一个绑定变量，因为它在该函数的上下文里有明确的定义：它被定义为该函数的唯一参数。</font>如果单独使用这个函数，而没有在任何处于作用域内的地方定more，编译器将报错：</p>
+<p><img src="/2023/02/24/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89%EF%BC%9ASpark%E9%97%AD%E5%8C%85%E6%A3%80%E6%9F%A5/image-20230224152448542-7223495.png" srcset="/img/loading.gif" lazyload alt="image-20230224152448542"></p>
+<p>另一方面，只要能找到名为more的变量，同样的函数就能正常工作：</p>
+<p><img src="/2023/02/24/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89%EF%BC%9ASpark%E9%97%AD%E5%8C%85%E6%A3%80%E6%9F%A5/image-20230224153042153-7223846.png" srcset="/img/loading.gif" lazyload alt="image-20230224153042153"></p>
+<p>运行时从任何带有自由变量的函数字面量，比如<code>(x: Int) =&gt; x + more</code>创建的函数，按照定义，要求捕获到它的自由变量more的绑定。相应的函数值结果（<strong>包含指向被捕获的more变量的引用</strong>）就被称为闭包，<strong>该名称源于“捕获”其自由变量从而“闭合”该函数字面量的动作</strong>。</p>
+<h4 id="1-2-修改自由变量"><a href="#1-2-修改自由变量" class="headerlink" title="1.2 修改自由变量"></a>1.2 修改自由变量</h4><p>上面的例子可能会使我们出现一个疑问：如果more在闭包创建以后被改变会发生什么？</p>
+<p>在scala中，答案是闭包可以看到这个改变。</p>
+<p>我们继续上面的代码，例子如下：</p>
+<p><img src="/2023/02/24/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89%EF%BC%9ASpark%E9%97%AD%E5%8C%85%E6%A3%80%E6%9F%A5/image-20230224160121423-7225683.png" srcset="/img/loading.gif" lazyload alt="image-20230224160121423"></p>
+<p><span style="background:#d4e9d5;">Scala的闭包捕获的是变量本身，而不是变量引用的值。</span>正如前面示例所展示的，为<code>(x: Int) =&gt; x + more</code>创建的闭包能够看到闭包外对more的修改。</p>
+<p>反之也是成立的：闭包对于自由变量的修改，闭包外也是可以看到的。</p>
+<h4 id="1-3-自由变量多副本"><a href="#1-3-自由变量多副本" class="headerlink" title="1.3 自由变量多副本"></a>1.3 自由变量多副本</h4><p>那么，如果一个闭包访问了某个随着程序运行会产生多个副本的变量会如何呢？</p>
+<p>例如，如果一个闭包使用了某个函数的局部变量，而这个函数又被调用了多次，会怎么样？闭包每次访问到的是这个变量的哪一个实例呢？</p>
+<p>我们通过代码来进行验证：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><code class="hljs scala"><span class="hljs-comment">// 第一次声明 more 变量</span><br>scala&gt; <span class="hljs-keyword">var</span> more = <span class="hljs-number">10</span><br>more: <span class="hljs-type">Int</span> = <span class="hljs-number">10</span><br><br><span class="hljs-comment">// 创建闭包函数</span><br>scala&gt; <span class="hljs-keyword">val</span> addMore10 = (x: <span class="hljs-type">Int</span>) =&gt; &#123;x + more&#125;<br>addMore10: <span class="hljs-type">Int</span> =&gt; <span class="hljs-type">Int</span> = $<span class="hljs-type">Lambda</span>$<span class="hljs-number">1223</span>/<span class="hljs-number">0x000000080079f840</span>@<span class="hljs-number">36810</span>c06<br><br><span class="hljs-comment">// 调用闭包函数</span><br>scala&gt; addMore10(<span class="hljs-number">9</span>)<br>res13: <span class="hljs-type">Int</span> = <span class="hljs-number">19</span><br><br><span class="hljs-comment">// 重新声明 more 变量</span><br>scala&gt; <span class="hljs-keyword">var</span> more = <span class="hljs-number">100</span><br>more: <span class="hljs-type">Int</span> = <span class="hljs-number">100</span><br><br><span class="hljs-comment">// 创建新的闭包函数</span><br>scala&gt; <span class="hljs-keyword">val</span> addMore100 = (x: <span class="hljs-type">Int</span>) =&gt; &#123;x + more&#125;<br>addMore100: <span class="hljs-type">Int</span> =&gt; <span class="hljs-type">Int</span> =  $<span class="hljs-type">Lambda</span>$<span class="hljs-number">1237</span>/<span class="hljs-number">0x00000008007b1840</span><span class="hljs-meta">@ac</span>94285<br><br><span class="hljs-comment">// 引用的是重新声明 more 变量</span><br>scala&gt; addMore100(<span class="hljs-number">9</span>)<br>res14: <span class="hljs-type">Int</span> = <span class="hljs-number">109</span><br><br><span class="hljs-comment">// 引用的还是第一次声明的 more 变量</span><br>scala&gt; addMore10(<span class="hljs-number">9</span>)<br>res15: <span class="hljs-type">Int</span> = <span class="hljs-number">19</span><br><br><span class="hljs-comment">// 对于全局而言 more 还是 100</span><br>scala&gt; more<br>res16: <span class="hljs-type">Int</span> = <span class="hljs-number">100</span><br><br></code></pre></td></tr></table></figure>
+
+<p>从上面的示例可以看出重新声明 <code>more</code> 后，全局的 <code>more</code> 的值是 100，但是对于闭包函数 <code>addMore10</code> 还是引用的是值为 10 的 <code>more</code>，这是由虚拟机来实现的，虚拟机会保证 <code>more</code> 变量在重新声明后，原来的被捕获的变量副本继续在堆上保持存活。</p>
+<h4 id="1-4-闭包的实现"><a href="#1-4-闭包的实现" class="headerlink" title="1.4 闭包的实现"></a>1.4 闭包的实现</h4><p>具体的实现细节较为复杂（其实是自己也不是很懂，看字节码有点头疼），这里简单介绍一下</p>
+<p>对于普通方法，局部变量在调用的时候是压入栈中的，计算完成之后就会 pop 出，所以在函数的调用完成后就不能再访问这个变量</p>
+<p>而Scala中的闭包：实际上是在Heap上创建了一个闭包函数的相关对象，在传入参数后进行初始化，并将最终得到的实例对象的引用压入到栈中</p>
+<p>总结：<span style="background:#fbd4d0;">Scala 实现闭包的方法是在 heap 中保存了使用不同参数初始化而产生的不同对象，对象中保存了变量的状态，然后调用具体对象的 apply 方法而最后产生不同的结果。</span></p>
+<p>编译后会生成一个Closures$$<font color="red">anonfun</font>$addMore$1的类文件</p>
+<h3 id="二、Spark中对于闭包的处理"><a href="#二、Spark中对于闭包的处理" class="headerlink" title="二、Spark中对于闭包的处理"></a>二、Spark中对于闭包的处理</h3><p>Spark中闭包检测的目的：</p>
+<p>为了防止spark程序中将闭包发送到Executor节点时发生序列化失败，因为闭包函数有可能引用了未序列化的外部变量</p>
+<h4 id="调用链"><a href="#调用链" class="headerlink" title="调用链"></a>调用链</h4><p>在进入转换算子(例如map)的时候，会先调用</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><code class="hljs scala"><span class="hljs-keyword">val</span> cleanF = sc.clean(f)<br></code></pre></td></tr></table></figure>
+
+<p>进入clean函数：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs scala"><span class="hljs-keyword">private</span>[spark] <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">clean</span></span>[<span class="hljs-type">F</span> &lt;: <span class="hljs-type">AnyRef</span>](f: <span class="hljs-type">F</span>, checkSerializable: <span class="hljs-type">Boolean</span> = <span class="hljs-literal">true</span>): <span class="hljs-type">F</span> = &#123;<br>  <span class="hljs-type">ClosureCleaner</span>.clean(f, checkSerializable)<br>  f<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><span style="background:#dad5e9;">闭包检测的核心类：ClosureCleaner</span></p>
+<p>最终调用的clean方法：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs scala"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">clean</span></span>(<br>    closure: <span class="hljs-type">AnyRef</span>,  <span class="hljs-comment">//这个就是我们检测的函数</span><br>    checkSerializable: <span class="hljs-type">Boolean</span> = <span class="hljs-literal">true</span>,	<span class="hljs-comment">//在闭包clean后对闭包能否序列化进行检测</span><br>    cleanTransitively: <span class="hljs-type">Boolean</span> = <span class="hljs-literal">true</span>): <span class="hljs-type">Unit</span> = &#123;	<span class="hljs-comment">//是否传递性的清理闭包</span><br>  clean(closure, checkSerializable, cleanTransitively, <span class="hljs-type">Map</span>.empty)<br>&#125;<br></code></pre></td></tr></table></figure>
+
+
+
+<h4 id="核心方法：clean"><a href="#核心方法：clean" class="headerlink" title="核心方法：clean()"></a>核心方法：clean()</h4><p>首先通过<span style="background:#d4e9d5;">isClosure</span>方法判断是否为闭包类</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><code class="hljs scala"><span class="hljs-keyword">if</span> (!isClosure(func.getClass) &amp;&amp; maybeIndylambdaProxy.isEmpty) &#123;<br>  logDebug(<span class="hljs-string">s&quot;Expected a closure; got <span class="hljs-subst">$&#123;func.getClass.getName&#125;</span>&quot;</span>)<br>  <span class="hljs-keyword">return</span><br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><span style="background:#d4e9d5;">isClosure</span>这个函数怎么判断是否为闭包类呢？</p>
+<p>发现和我们上文scala的class文件对应起来了</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs scala"><span class="hljs-keyword">private</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">isClosure</span></span>(cls: <span class="hljs-type">Class</span>[_]): <span class="hljs-type">Boolean</span> = &#123;<br>  cls.getName.contains(<span class="hljs-string">&quot;$anonfun$&quot;</span>)<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>然后通过<span style="background:#d4e9d5;">getOuterClassesAndObejct()</span>函数获取func中所有对于外部闭包对象的引用</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs scala"><span class="hljs-comment">// A list of classes that represents closures enclosed in the given one</span><br><span class="hljs-keyword">val</span> innerClasses = getInnerClosureClasses(func)<br><br><span class="hljs-comment">// A list of enclosing objects and their respective classes, from innermost to outermost</span><br><span class="hljs-comment">// An outer object at a given index is of type outer class at the same index</span><br><span class="hljs-keyword">val</span> (outerClasses, outerObjects) = getOuterClassesAndObjects(func)<br></code></pre></td></tr></table></figure>
+
+<p>遍历class文件中的所有field，找到$outer的就是外部的闭包引用，同时，如果外部闭包引用也是闭包类，那么同样获取其外部，直到最外层的非闭包类。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs scala"><span class="hljs-keyword">private</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">getOuterClassesAndObjects</span></span>(obj: <span class="hljs-type">AnyRef</span>): (<span class="hljs-type">List</span>[<span class="hljs-type">Class</span>[_]], <span class="hljs-type">List</span>[<span class="hljs-type">AnyRef</span>]) = &#123;<br>  <span class="hljs-keyword">for</span> (f &lt;- obj.getClass.getDeclaredFields <span class="hljs-keyword">if</span> f.getName == <span class="hljs-string">&quot;$outer&quot;</span>) &#123;<br>    f.setAccessible(<span class="hljs-literal">true</span>)<br>    <span class="hljs-keyword">val</span> outer = f.get(obj)<br>    <span class="hljs-comment">// The outer pointer may be null if we have cleaned this closure before</span><br>    <span class="hljs-keyword">if</span> (outer != <span class="hljs-literal">null</span>) &#123;<br>      <span class="hljs-keyword">if</span> (isClosure(f.getType)) &#123;<br>        <span class="hljs-keyword">val</span> recurRet = getOuterClassesAndObjects(outer)<br>        <span class="hljs-keyword">return</span> (f.getType :: recurRet._1, outer :: recurRet._2)<br>      &#125; <span class="hljs-keyword">else</span> &#123;<br>        <span class="hljs-keyword">return</span> (f.getType :: <span class="hljs-type">Nil</span>, outer :: <span class="hljs-type">Nil</span>) <span class="hljs-comment">// Stop at the first $outer that is not a closure</span><br>      &#125;<br>    &#125;<br>  &#125;<br>  (<span class="hljs-type">Nil</span>, <span class="hljs-type">Nil</span>)<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>而后，禁止func中出现return返回值，在这里扫描，如果出现return直接报错。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><code class="hljs scala"><span class="hljs-comment">// Fail fast if we detect return statements in closures</span><br>getClassReader(func.getClass).accept(<span class="hljs-keyword">new</span> <span class="hljs-type">ReturnStatementFinder</span>(), <span class="hljs-number">0</span>)<br><br><span class="hljs-keyword">private</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">ReturnStatementFinder</span>(<span class="hljs-params">targetMethodName: <span class="hljs-type">Option</span>[<span class="hljs-type">String</span>] = <span class="hljs-type">None</span></span>)</span><br>  <span class="hljs-keyword">extends</span> <span class="hljs-type">ClassVisitor</span>(<span class="hljs-type">ASM9</span>) &#123;<br>  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">visitMethod</span></span>(access: <span class="hljs-type">Int</span>, name: <span class="hljs-type">String</span>, desc: <span class="hljs-type">String</span>,<br>      sig: <span class="hljs-type">String</span>, exceptions: <span class="hljs-type">Array</span>[<span class="hljs-type">String</span>]): <span class="hljs-type">MethodVisitor</span> = &#123;<br><br>    <span class="hljs-comment">// $anonfun$ covers indylambda closures</span><br>    <span class="hljs-keyword">if</span> (name.contains(<span class="hljs-string">&quot;apply&quot;</span>) || name.contains(<span class="hljs-string">&quot;$anonfun$&quot;</span>)) &#123;<br>      <span class="hljs-comment">// A method with suffix &quot;$adapted&quot; will be generated in cases like</span><br>      <span class="hljs-comment">// &#123; _:Int =&gt; return; Seq()&#125; but not &#123; _:Int =&gt; return; true&#125;</span><br>      <span class="hljs-comment">// closure passed is $anonfun$t$1$adapted while actual code resides in $anonfun$s$1</span><br>      <span class="hljs-comment">// visitor will see only $anonfun$s$1$adapted, so we remove the suffix, see</span><br>      <span class="hljs-comment">// https://github.com/scala/scala-dev/issues/109</span><br>      <span class="hljs-keyword">val</span> isTargetMethod = targetMethodName.isEmpty ||<br>        name == targetMethodName.get || name == targetMethodName.get.stripSuffix(<span class="hljs-string">&quot;$adapted&quot;</span>)<br><br>      <span class="hljs-keyword">new</span> <span class="hljs-type">MethodVisitor</span>(<span class="hljs-type">ASM9</span>) &#123;<br>        <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">visitTypeInsn</span></span>(op: <span class="hljs-type">Int</span>, tp: <span class="hljs-type">String</span>): <span class="hljs-type">Unit</span> = &#123;<br>          <span class="hljs-keyword">if</span> (op == <span class="hljs-type">NEW</span> &amp;&amp; tp.contains(<span class="hljs-string">&quot;scala/runtime/NonLocalReturnControl&quot;</span>) &amp;&amp; isTargetMethod) &#123;<br>            <span class="hljs-keyword">throw</span> <span class="hljs-keyword">new</span> <span class="hljs-type">ReturnStatementInClosureException</span><br>          &#125;<br>        &#125;<br>      &#125;<br>    &#125; <span class="hljs-keyword">else</span> &#123;<br>      <span class="hljs-keyword">new</span> <span class="hljs-type">MethodVisitor</span>(<span class="hljs-type">ASM9</span>) &#123;&#125;<br>    &#125;<br>  &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+
+
+<p>todo：后面理解深了继续看，已经不是很能看得懂了</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/Spark%E6%BA%90%E7%A0%81%E7%B3%BB%E5%88%97/" class="category-chain-item">Spark源码系列</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/">#源码解析</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Spark源码解析（二）：Spark闭包检查</div>
+      <div>http://example.com/2023/02/24/Spark源码解析（二）：Spark闭包检查/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>River</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2023年2月24日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2023/02/24/Spark%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%EF%BC%88%E4%B8%80%EF%BC%89%EF%BC%9ARDD%E4%B9%8BTransfrom%E7%AE%97%E5%AD%90/" title="Spark源码解析（一）：RDD之Transfrom算子">
+                        <span class="hidden-mobile">Spark源码解析（一）：RDD之Transfrom算子</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://cdn.jsdelivr.net/npm/valine@1/dist/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"M4itBiJJg4wKhXfCQdxTrLh3-gzGzoHsz","appKey":"vDeo82JKKQDhW2VuHjE0RXEq","path":"window.location.pathname","placeholder":"说点什么","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":null,"emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+    <div class="statistics">
+  
+  
+
+  
+    
+      <span id="leancloud-site-pv-container" style="display: none">
+        总访问量 
+        <span id="leancloud-site-pv"></span>
+         次
+      </span>
+    
+    
+      <span id="leancloud-site-uv-container" style="display: none">
+        总访客数 
+        <span id="leancloud-site-uv"></span>
+         人
+      </span>
+    
+    
+
+  
+</div>
+
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nprogress@0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js" ></script>
+<script  src="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://cdn.jsdelivr.net/npm/typed.js@2/lib/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://cdn.jsdelivr.net/npm/tocbot@4/dist/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://cdn.jsdelivr.net/npm/anchor-js@4/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3/dist/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
